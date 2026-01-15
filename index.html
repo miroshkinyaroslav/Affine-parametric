@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Параметрическое задание линейного многообразия</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --border: #cbd5e1;
+            --text-main: #334155;
+            --text-light: #64748b;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --highlight: #fef3c7;
+            --purple: #8b5cf6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1400px;
+            display: grid;
+            gap: 2rem;
+        }
+
+        .panel {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        .controls-header {
+            display: flex;
+            gap: 1.5rem;
+            align-items: end;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        input[type="number"], input[type="text"] {
+            padding: 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        button {
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background-color: white;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background-color: #f8fafc;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .matrix-wrapper {
+            display: inline-flex;
+            align-items: center;
+            position: relative;
+            padding: 0 10px;
+        }
+
+        .matrix-wrapper::before,
+        .matrix-wrapper::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+            border: 2px solid var(--primary);
+        }
+
+        .matrix-wrapper::before {
+            left: 0;
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+        }
+
+        .matrix-wrapper::after {
+            right: 0;
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 8px;
+            margin: 5px;
+        }
+
+        .matrix-cell {
+            min-width: 60px;
+            height: 40px;
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+        }
+
+        .matrix-cell input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            text-align: center;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+
+        .matrix-cell.readonly {
+            background-color: #f8fafc;
+            border: none;
+            font-weight: bold;
+        }
+
+        .matrix-cell.free-var {
+            background-color: #d1fae5;
+            border-color: var(--success);
+        }
+
+        .step-history {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .step-card {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .step-card.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .step-title {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .step-desc {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .formula-box {
+            background: var(--highlight);
+            border-left: 4px solid var(--warning);
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .result-box {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 2px solid var(--success);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .result-box h3 {
+            color: var(--success);
+            margin-bottom: 1rem;
+        }
+
+        .info-box {
+            background: #f8fafc;
+            border-left: 4px solid var(--accent);
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .example-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .btn-example {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+            background-color: #f1f5f9;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-example:hover {
+            background-color: #e2e8f0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Параметрическое задание линейного многообразия</h1>
+    <p class="subtitle">Задать линейное многообразие H параметрически и указать его размерность</p>
+    <div class="app-container">
+        <div id="inputPanel" class="panel">
+            <h2>📝 Система линейных уравнений</h2>
+            <div class="info-box">
+                Введите коэффициенты и правые части системы линейных уравнений
+            </div>
+
+            <div class="controls-header">
+                <div class="input-group">
+                    <label>Количество уравнений:</label>
+                    <input type="number" id="numEquations" min="1" max="5" value="3">
+                </div>
+                <div class="input-group">
+                    <label>Количество переменных:</label>
+                    <input type="number" id="numVariables" min="2" max="6" value="5">
+                </div>
+                <button class="btn-secondary" onclick="app.generateInputGrid()">Обновить поля</button>
+            </div>
+
+            <div id="systemInput" style="margin: 1.5rem 0;"></div>
+
+            <div class="control-buttons">
+                <button class="btn-primary" onclick="app.startSolver()">🚀 Решить</button>
+            </div>
+
+            <div class="example-buttons">
+                <strong>Примеры:</strong>
+                <button class="btn-example" onclick="app.loadExample('default')">Пример из условия</button>
+                <button class="btn-example" onclick="app.loadExample('ex1')">Пример 2</button>
+            </div>
+        </div>
+
+        <div id="workflowContainer" class="workflow-area" style="display: none;">
+            <div class="panel">
+                <h2>📊 Решение</h2>
+                <div class="control-buttons">
+                    <button id="btnNext" class="btn-primary" onclick="app.showNextStep()">Показать следующий шаг</button>
+                    <button id="btnAll" class="btn-secondary" onclick="app.showAllSteps()">Показать все шаги</button>
+                    <button class="btn-secondary" onclick="app.reset()">🔄 Новая задача</button>
+                </div>
+                <div id="historyList" class="step-history" style="margin-top: 2rem;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class Fraction {
+            constructor(num, den = 1) {
+                if (den === 0) throw new Error("Знаменатель не может быть нулем");
+                const g = this.gcd(Math.abs(num), Math.abs(den));
+                this.num = num / g; this.den = den / g;
+                if (this.den < 0) { this.num = -this.num; this.den = -this.den; }
+            }
+            gcd(a, b) { return b === 0 ? a : this.gcd(b, a % b); }
+            add(other) { return new Fraction(this.num * other.den + other.num * this.den, this.den * other.den); }
+            subtract(other) { return new Fraction(this.num * other.den - other.num * this.den, this.den * other.den); }
+            multiply(other) { return new Fraction(this.num * other.num, this.den * other.den); }
+            divide(other) {
+                if (other.num === 0) throw new Error("Деление на ноль");
+                return new Fraction(this.num * other.den, this.den * other.num);
+            }
+            negate() { return new Fraction(-this.num, this.den); }
+            equals(other) { return this.num === other.num && this.den === other.den; }
+            isZero() { return this.num === 0; }
+            toString() { return this.den === 1 ? this.num.toString() : `${this.num}/${this.den}`; }
+            toLatex() {
+                if (this.den === 1) return this.num.toString();
+                if (this.num < 0) return `-\\frac{${-this.num}}{${this.den}}`;
+                return `\\frac{${this.num}}{${this.den}}`;
+            }
+            static fromString(str) {
+                str = str.trim();
+                if (str.includes('/')) {
+                    const [n, d] = str.split('/').map(x => parseInt(x.trim()));
+                    return new Fraction(n, d);
+                }
+                return new Fraction(parseInt(str), 1);
+            }
+        }
+
+        class AffineParametricSolver {
+            constructor(equations, rhs) {
+                this.equations = equations.map(row => row.map(x => new Fraction(x)));
+                this.rhs = rhs.map(x => new Fraction(x));
+                this.rows = this.equations.length;
+                this.cols = this.equations[0].length;
+                this.steps = [];
+
+                // Расширенная матрица [A|b]
+                this.augmented = [];
+                for (let i = 0; i < this.rows; i++) {
+                    this.augmented[i] = [...this.equations[i], this.rhs[i]];
+                }
+            }
+
+            calculate() {
+                this.addStep(
+                    "Исходная расширенная матрица [A|b]",
+                    "Составляем расширенную матрицу системы линейных уравнений:",
+                    this.copyMatrix(this.augmented)
+                );
+
+                this.gaussElimination();
+                this.findRank();
+                this.findFreeVariables();
+                this.expressBasicThroughFree();
+                this.buildParametricForm();
+            }
+
+            gaussElimination() {
+                const m = this.augmented;
+                let currentRow = 0;
+
+                for (let col = 0; col < this.cols && currentRow < this.rows; col++) {
+                    // Поиск ненулевого элемента
+                    let pivotRow = -1;
+                    for (let row = currentRow; row < this.rows; row++) {
+                        if (!m[row][col].isZero()) {
+                            pivotRow = row;
+                            break;
+                        }
+                    }
+
+                    if (pivotRow === -1) continue;
+
+                    // Перестановка строк
+                    if (pivotRow !== currentRow) {
+                        [m[currentRow], m[pivotRow]] = [m[pivotRow], m[currentRow]];
+                        this.addStep(
+                            `Перестановка строк ${currentRow + 1} ↔ ${pivotRow + 1}`,
+                            "Переставляем строки для получения ненулевого элемента",
+                            this.copyMatrix(m)
+                        );
+                    }
+
+                    // Нормализация строки
+                    const pivot = m[currentRow][col];
+                    if (!pivot.equals(new Fraction(1))) {
+                        for (let j = 0; j <= this.cols; j++) {
+                            m[currentRow][j] = m[currentRow][j].divide(pivot);
+                        }
+                        this.addStep(
+                            `Нормализация строки ${currentRow + 1}`,
+                            `Делим строку ${currentRow + 1} на ${pivot.toString()}`,
+                            this.copyMatrix(m)
+                        );
+                    }
+
+                    // Обнуление под pivot
+                    let hasElimination = false;
+                    for (let row = currentRow + 1; row < this.rows; row++) {
+                        if (!m[row][col].isZero()) {
+                            hasElimination = true;
+                            const factor = m[row][col];
+                            for (let j = 0; j <= this.cols; j++) {
+                                m[row][j] = m[row][j].subtract(m[currentRow][j].multiply(factor));
+                            }
+                        }
+                    }
+
+                    if (hasElimination) {
+                        this.addStep(
+                            `Обнуление под элементом (${currentRow + 1}, ${col + 1})`,
+                            `Вычитаем строку ${currentRow + 1} из нижележащих строк`,
+                            this.copyMatrix(m)
+                        );
+                    }
+
+                    currentRow++;
+                }
+
+                this.addStep(
+                    "Ступенчатый вид матрицы",
+                    "Прямой ход метода Гаусса завершен",
+                    this.copyMatrix(m)
+                );
+            }
+
+            findRank() {
+                let rank = 0;
+                for (let i = 0; i < this.rows; i++) {
+                    let hasNonZero = false;
+                    for (let j = 0; j < this.cols; j++) {
+                        if (!this.augmented[i][j].isZero()) {
+                            hasNonZero = true;
+                            break;
+                        }
+                    }
+                    if (hasNonZero) rank++;
+                }
+                this.rank = rank;
+
+                this.addStep(
+                    "Определение ранга системы",
+                    `Ранг системы r = ${rank} (количество ненулевых строк)`,
+                    null,
+                    `r = ${rank}`
+                );
+            }
+
+            findFreeVariables() {
+                const basicVars = [];
+                const freeVars = [];
+
+                // Определяем базисные переменные (где pivot-элементы)
+                for (let i = 0; i < this.rank; i++) {
+                    for (let j = 0; j < this.cols; j++) {
+                        if (!this.augmented[i][j].isZero()) {
+                            basicVars.push(j);
+                            break;
+                        }
+                    }
+                }
+
+                // Остальные переменные - свободные
+                for (let j = 0; j < this.cols; j++) {
+                    if (!basicVars.includes(j)) {
+                        freeVars.push(j);
+                    }
+                }
+
+                this.basicVars = basicVars;
+                this.freeVars = freeVars;
+                this.dimension = freeVars.length;
+
+                const freeVarNames = freeVars.map(i => `x_{${i + 1}}`).join(', ');
+                const basicVarNames = basicVars.map(i => `x_{${i + 1}}`).join(', ');
+
+                this.addStep(
+                    "Определение свободных переменных",
+                    `Количество свободных переменных: k = n - r = ${this.cols} - ${this.rank} = ${this.dimension}<br>` +
+                    `Базисные переменные: ${basicVarNames}<br>` +
+                    `Свободные переменные: ${freeVarNames}`,
+                    null,
+                    `\\text{dim}(H) = ${this.dimension}`
+                );
+            }
+
+            expressBasicThroughFree() {
+                const expressions = [];
+
+                for (let i = 0; i < this.rank; i++) {
+                    const basicVar = this.basicVars[i];
+                    let expr = `x_{${basicVar + 1}} = ${this.augmented[i][this.cols].toLatex()}`;
+
+                    for (let j = 0; j < this.cols; j++) {
+                        if (j !== basicVar && !this.augmented[i][j].isZero()) {
+                            const coef = this.augmented[i][j].negate();
+                            const sign = coef.num >= 0 ? '+' : '';
+                            expr += ` ${sign} ${coef.toLatex()} x_{${j + 1}}`;
+                        }
+                    }
+
+                    expressions.push(expr);
+                }
+
+                this.expressions = expressions;
+
+                this.addStep(
+                    "Выражение базисных переменных через свободные",
+                    "Выражаем базисные переменные через свободные из ступенчатой системы:",
+                    null,
+                    expressions.join(' \\\\ ')
+                );
+            }
+
+            buildParametricForm() {
+                // Строим параметрическую форму
+                const params = this.freeVars.map((v, i) => `t_{${i + 1}}`);
+
+                // Вектор x0 (частное решение при всех свободных = 0)
+                const x0 = Array(this.cols).fill(new Fraction(0));
+                for (let i = 0; i < this.rank; i++) {
+                    x0[this.basicVars[i]] = this.augmented[i][this.cols];
+                }
+
+                // Векторы направлений
+                const directions = [];
+                for (let k = 0; k < this.freeVars.length; k++) {
+                    const v = Array(this.cols).fill(new Fraction(0));
+                    v[this.freeVars[k]] = new Fraction(1);
+
+                    // Заполняем базисные переменные
+                    for (let i = 0; i < this.rank; i++) {
+                        const basicVar = this.basicVars[i];
+                        const coef = this.augmented[i][this.freeVars[k]].negate();
+                        v[basicVar] = coef;
+                    }
+
+                    directions.push(v);
+                }
+
+                this.x0 = x0;
+                this.directions = directions;
+
+                // Формируем LaTeX
+                let latex = 'x = x_0 + ';
+                for (let k = 0; k < params.length; k++) {
+                    latex += `${params[k]} v_{${k + 1}}`;
+                    if (k < params.length - 1) latex += ' + ';
+                }
+
+                latex += ' \\\\ x_0 = \\begin{pmatrix}';
+                latex += x0.map(f => f.toLatex()).join(' \\\\ ');
+                latex += '\\end{pmatrix}';
+
+                for (let k = 0; k < directions.length; k++) {
+                    latex += `, \\quad v_{${k + 1}} = \\begin{pmatrix}`;
+                    latex += directions[k].map(f => f.toLatex()).join(' \\\\ ');
+                    latex += '\\end{pmatrix}`;
+                }
+
+                this.addStep(
+                    "✅ Параметрическая форма решения",
+                    `Размерность линейного многообразия: <strong>dim(H) = ${this.dimension}</strong><br><br>` +
+                    `Параметрическое уравнение:`,
+                    null,
+                    latex,
+                    true
+                );
+            }
+
+            copyMatrix(m) {
+                return m.map(row => row.map(f => new Fraction(f.num, f.den)));
+            }
+
+            addStep(title, desc, matrix = null, latex = null, isFinal = false) {
+                this.steps.push({ title, desc, matrix, latex, isFinal });
+            }
+        }
+
+        const app = {
+            mainSolver: null,
+            currentStepIndex: 0,
+
+            init() {
+                this.generateInputGrid();
+                setTimeout(() => this.renderAllMath(), 500);
+            },
+
+            generateInputGrid() {
+                const numEq = parseInt(document.getElementById('numEquations').value);
+                const numVar = parseInt(document.getElementById('numVariables').value);
+
+                let html = '<table style="border-collapse: collapse;">';
+                for (let i = 0; i < numEq; i++) {
+                    html += '<tr>';
+                    for (let j = 0; j < numVar; j++) {
+                        html += `<td style="padding:5px;">`;
+                        html += `<input type="text" data-r="${i}" data-c="${j}" value="0" style="width:60px;text-align:center;">`;
+                        html += `x<sub>${j + 1}</sub>`;
+                        if (j < numVar - 1) html += ' +';
+                        html += `</td>`;
+                    }
+                    html += `<td style="padding:5px;"> = </td>`;
+                    html += `<td style="padding:5px;"><input type="text" data-r="${i}" data-c="rhs" value="0" style="width:60px;text-align:center;"></td>`;
+                    html += '</tr>';
+                }
+                html += '</table>';
+
+                document.getElementById('systemInput').innerHTML = html;
+            },
+
+            renderAllMath() {
+                if (typeof renderMathInElement !== 'undefined') {
+                    renderMathInElement(document.body, {
+                        delimiters: [
+                            { left: "$$", right: "$$", display: true },
+                            { left: "$", right: "$", display: false }
+                        ],
+                        throwOnError: false
+                    });
+                }
+            },
+
+            createAugmentedMatrixHTML(matrix) {
+                const rows = matrix.length;
+                const cols = matrix[0].length - 1;
+                let html = '<div style="display:flex;justify-content:center;"><div class="matrix-wrapper">';
+                html += `<div class="matrix-grid" style="grid-template-columns:repeat(${cols + 1},60px);">`;
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j <= cols; j++) {
+                        const cls = j === cols ? 'free-var' : '';
+                        html += `<div class="matrix-cell readonly ${cls}">${matrix[i][j].toString()}</div>`;
+                    }
+                }
+                html += '</div></div></div>';
+                return html;
+            },
+
+            loadExample(key) {
+                const examples = {
+                    'default': {
+                        numEq: 3,
+                        numVar: 5,
+                        data: [
+                            [1, 2, 1, -2, 1, 2],
+                            [3, -1, 2, 2, 0, 2],
+                            [2, -4, 1, 4, -1, 2]
+                        ]
+                    },
+                    'ex1': {
+                        numEq: 2,
+                        numVar: 4,
+                        data: [
+                            [1, 1, 1, 1, 4],
+                            [1, -1, 2, 0, 2]
+                        ]
+                    }
+                };
+
+                const example = examples[key];
+                document.getElementById('numEquations').value = example.numEq;
+                document.getElementById('numVariables').value = example.numVar;
+                this.generateInputGrid();
+
+                setTimeout(() => {
+                    const inputs = document.querySelectorAll('#systemInput input');
+                    inputs.forEach(inp => {
+                        const r = parseInt(inp.dataset.r);
+                        const c = inp.dataset.c;
+                        if (c === 'rhs') {
+                            inp.value = example.data[r][example.numVar];
+                        } else {
+                            const col = parseInt(c);
+                            inp.value = example.data[r][col];
+                        }
+                    });
+                }, 100);
+            },
+
+            reset() {
+                document.getElementById('workflowContainer').style.display = 'none';
+                document.getElementById('inputPanel').style.display = 'block';
+                document.getElementById('historyList').innerHTML = '';
+                this.mainSolver = null;
+                this.currentStepIndex = 0;
+            },
+
+            startSolver() {
+                const numEq = parseInt(document.getElementById('numEquations').value);
+                const numVar = parseInt(document.getElementById('numVariables').value);
+
+                const equations = Array(numEq).fill(0).map(() => Array(numVar).fill(0));
+                const rhs = Array(numEq).fill(0);
+
+                const inputs = document.querySelectorAll('#systemInput input');
+                inputs.forEach(inp => {
+                    const r = parseInt(inp.dataset.r);
+                    const c = inp.dataset.c;
+                    const value = parseInt(inp.value) || 0;
+                    if (c === 'rhs') {
+                        rhs[r] = value;
+                    } else {
+                        equations[r][parseInt(c)] = value;
+                    }
+                });
+
+                try {
+                    this.mainSolver = new AffineParametricSolver(equations, rhs);
+                    this.mainSolver.calculate();
+                    document.getElementById('inputPanel').style.display = 'none';
+                    document.getElementById('workflowContainer').style.display = 'grid';
+                    this.currentStepIndex = 0;
+                    this.renderHistory();
+                    this.updateButtons();
+                } catch (e) {
+                    alert("Ошибка: " + e.message);
+                }
+            },
+
+            renderHistory() {
+                const list = document.getElementById('historyList');
+                list.innerHTML = '';
+                for (let i = 0; i <= this.currentStepIndex; i++) {
+                    const step = this.mainSolver.steps[i];
+                    const div = document.createElement('div');
+                    div.className = `step-card ${i === this.currentStepIndex ? 'active' : ''}`;
+
+                    let content = `
+                        <div class="step-title">
+                            <span>Шаг ${i}</span>
+                            <span>${step.title}</span>
+                        </div>
+                        <div class="step-desc">${step.desc}</div>
+                    `;
+
+                    if (step.latex) {
+                        content += `<div class="formula-box">$$${step.latex}$$</div>`;
+                    }
+
+                    if (step.matrix) {
+                        content += `<div style="margin-top:1rem;">${this.createAugmentedMatrixHTML(step.matrix)}</div>`;
+                    }
+
+                    if (step.isFinal) {
+                        content += `<div class="result-box">
+                            <h3>✅ Решение получено</h3>
+                            <p>Параметрическая форма линейного многообразия найдена!</p>
+                        </div>`;
+                    }
+
+                    div.innerHTML = content;
+                    list.appendChild(div);
+                }
+                setTimeout(() => this.renderAllMath(), 100);
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            },
+
+            showNextStep() {
+                if (this.currentStepIndex < this.mainSolver.steps.length - 1) {
+                    this.currentStepIndex++;
+                    this.renderHistory();
+                    this.updateButtons();
+                }
+            },
+
+            showAllSteps() {
+                this.currentStepIndex = this.mainSolver.steps.length - 1;
+                this.renderHistory();
+                this.updateButtons();
+            },
+
+            updateButtons() {
+                const isFinished = this.currentStepIndex >= this.mainSolver.steps.length - 1;
+                document.getElementById('btnNext').disabled = isFinished;
+                document.getElementById('btnAll').disabled = isFinished;
+                document.getElementById('btnNext').innerText = isFinished ? "✅ Решение завершено" : "Показать следующий шаг";
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+
+</html>
