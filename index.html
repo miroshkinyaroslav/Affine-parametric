@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Параметрическое задание линейного многообразия</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <style>
         :root {
             --primary: #0f172a;
@@ -89,7 +89,8 @@
             font-size: 0.85rem;
         }
 
-        input[type="number"], input[type="text"] {
+        input[type="number"],
+        input[type="text"] {
             padding: 0.6rem;
             border: 1px solid var(--border);
             border-radius: 6px;
@@ -135,6 +136,8 @@
             align-items: center;
             position: relative;
             padding: 0 10px;
+            overflow-x: auto;
+            max-width: 100%;
         }
 
         .matrix-wrapper::before,
@@ -145,6 +148,7 @@
             bottom: 0;
             width: 12px;
             border: 2px solid var(--primary);
+            pointer-events: none;
         }
 
         .matrix-wrapper::before {
@@ -186,6 +190,12 @@
             text-align: center;
             font-family: 'Fira Code', monospace;
             font-size: 0.85rem;
+            background: transparent;
+        }
+
+        .matrix-cell input:focus {
+            outline: none;
+            background-color: #f0f9ff;
         }
 
         .matrix-cell.readonly {
@@ -238,6 +248,7 @@
             padding: 1rem;
             border-radius: 6px;
             margin: 1rem 0;
+            overflow-x: auto;
         }
 
         .result-box {
@@ -248,9 +259,18 @@
             margin-top: 1.5rem;
         }
 
+        .result-box.error {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-color: var(--error);
+        }
+
         .result-box h3 {
             color: var(--success);
             margin-bottom: 1rem;
+        }
+
+        .result-box.error h3 {
+            color: var(--error);
         }
 
         .info-box {
@@ -285,6 +305,28 @@
         .btn-example:hover {
             background-color: #e2e8f0;
         }
+
+        /* Table Input Styles */
+        .system-table-wrapper {
+            overflow-x: auto;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .system-table {
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+
+        .system-table td {
+            padding: 0 4px;
+            white-space: nowrap;
+        }
+
+        .system-input-wrapper {
+            display: inline-flex;
+            align-items: center;
+        }
     </style>
 </head>
 
@@ -295,22 +337,24 @@
         <div id="inputPanel" class="panel">
             <h2>📝 Система линейных уравнений</h2>
             <div class="info-box">
-                Введите коэффициенты и правые части системы линейных уравнений
+                Введите коэффициенты и правые части системы линейных уравнений.
+                <br>
+                <small>Поддерживаются целые числа (5), десятичные дроби (2.5) и обыкновенные дроби (1/3).</small>
             </div>
 
             <div class="controls-header">
                 <div class="input-group">
                     <label>Количество уравнений:</label>
-                    <input type="number" id="numEquations" min="1" max="5" value="3">
+                    <input type="number" id="numEquations" min="1" max="8" value="3">
                 </div>
                 <div class="input-group">
                     <label>Количество переменных:</label>
-                    <input type="number" id="numVariables" min="2" max="6" value="5">
+                    <input type="number" id="numVariables" min="2" max="8" value="5">
                 </div>
                 <button class="btn-secondary" onclick="app.generateInputGrid()">Обновить поля</button>
             </div>
 
-            <div id="systemInput" style="margin: 1.5rem 0;"></div>
+            <div id="systemInput" class="system-table-wrapper"></div>
 
             <div class="control-buttons">
                 <button class="btn-primary" onclick="app.startSolver()">🚀 Решить</button>
@@ -318,8 +362,10 @@
 
             <div class="example-buttons">
                 <strong>Примеры:</strong>
-                <button class="btn-example" onclick="app.loadExample('default')">Пример из условия</button>
+                <button class="btn-example" onclick="app.loadExample('default')">Пример 1</button>
                 <button class="btn-example" onclick="app.loadExample('ex1')">Пример 2</button>
+                <button class="btn-example" onclick="app.loadExample('decimal')">Дроби (0.5 и 1/3)</button>
+                <button class="btn-example" onclick="app.loadExample('nosol')">Нет решений</button>
             </div>
         </div>
 
@@ -327,7 +373,8 @@
             <div class="panel">
                 <h2>📊 Решение</h2>
                 <div class="control-buttons">
-                    <button id="btnNext" class="btn-primary" onclick="app.showNextStep()">Показать следующий шаг</button>
+                    <button id="btnNext" class="btn-primary" onclick="app.showNextStep()">Показать следующий
+                        шаг</button>
                     <button id="btnAll" class="btn-secondary" onclick="app.showAllSteps()">Показать все шаги</button>
                     <button class="btn-secondary" onclick="app.reset()">🔄 Новая задача</button>
                 </div>
@@ -340,11 +387,25 @@
         class Fraction {
             constructor(num, den = 1) {
                 if (den === 0) throw new Error("Знаменатель не может быть нулем");
-                const g = this.gcd(Math.abs(num), Math.abs(den));
-                this.num = num / g; this.den = den / g;
-                if (this.den < 0) { this.num = -this.num; this.den = -this.den; }
+
+                // Ensure inputs are integers for GCD
+                if (!Number.isInteger(num) || !Number.isInteger(den)) {
+                    // Try to fix floating point issues if passed to constructor
+                    // Note: Ideally use fromString static method
+                }
+
+                const common = this.gcd(Math.abs(Math.round(num)), Math.abs(Math.round(den)));
+                this.num = Math.round(num / common);
+                this.den = Math.round(den / common);
+
+                if (this.den < 0) {
+                    this.num = -this.num;
+                    this.den = -this.den;
+                }
             }
+
             gcd(a, b) { return b === 0 ? a : this.gcd(b, a % b); }
+
             add(other) { return new Fraction(this.num * other.den + other.num * this.den, this.den * other.den); }
             subtract(other) { return new Fraction(this.num * other.den - other.num * this.den, this.den * other.den); }
             multiply(other) { return new Fraction(this.num * other.num, this.den * other.den); }
@@ -355,29 +416,68 @@
             negate() { return new Fraction(-this.num, this.den); }
             equals(other) { return this.num === other.num && this.den === other.den; }
             isZero() { return this.num === 0; }
-            toString() { return this.den === 1 ? this.num.toString() : `${this.num}/${this.den}`; }
+
+            toString() {
+                if (this.den === 1) return this.num.toString();
+                return `${this.num}/${this.den}`;
+            }
+
             toLatex() {
                 if (this.den === 1) return this.num.toString();
                 if (this.num < 0) return `-\\frac{${-this.num}}{${this.den}}`;
                 return `\\frac{${this.num}}{${this.den}}`;
             }
+
             static fromString(str) {
-                str = str.trim();
+                str = String(str).trim();
+                if (!str) return new Fraction(0);
+
+                // Handle fraction x/y
                 if (str.includes('/')) {
-                    const [n, d] = str.split('/').map(x => parseInt(x.trim()));
-                    return new Fraction(n, d);
+                    const parts = str.split('/');
+                    if (parts.length !== 2) return new Fraction(0); // Fail safe
+
+                    // Recursive call to handle decimals in fraction parts like 1.5/2
+                    const num = parseFloat(parts[0]);
+                    const den = parseFloat(parts[1]);
+
+                    // Convert float/float to integer/integer
+                    const fNum = Fraction.fromFloat(num);
+                    const fDen = Fraction.fromFloat(den);
+                    return fNum.divide(fDen);
                 }
-                return new Fraction(parseInt(str), 1);
+
+                // Handle decimal or integer
+                return Fraction.fromFloat(parseFloat(str));
+            }
+
+            static fromFloat(x) {
+                if (Number.isInteger(x)) return new Fraction(x);
+                if (isNaN(x)) return new Fraction(0);
+
+                const tolerance = 1.0E-6;
+                let h1 = 1, h2 = 0, k1 = 0, k2 = 1;
+                let b = x;
+                do {
+                    let a = Math.floor(b);
+                    let aux = h1; h1 = a * h1 + h2; h2 = aux;
+                    aux = k1; k1 = a * k1 + k2; k2 = aux;
+                    b = 1 / (b - a);
+                } while (Math.abs(x - h1 / k1) > x * tolerance);
+
+                return new Fraction(h1, k1);
             }
         }
 
         class AffineParametricSolver {
             constructor(equations, rhs) {
-                this.equations = equations.map(row => row.map(x => new Fraction(x)));
-                this.rhs = rhs.map(x => new Fraction(x));
+                // Parse strings to Fractions here
+                this.equations = equations.map(row => row.map(x => Fraction.fromString(x)));
+                this.rhs = rhs.map(x => Fraction.fromString(x));
                 this.rows = this.equations.length;
                 this.cols = this.equations[0].length;
                 this.steps = [];
+                this.isConsistent = true;
 
                 // Расширенная матрица [A|b]
                 this.augmented = [];
@@ -394,6 +494,12 @@
                 );
 
                 this.gaussElimination();
+
+                // Проверка совместности после приведения к ступенчатому виду
+                if (!this.checkConsistency()) {
+                    return;
+                }
+
                 this.findRank();
                 this.findFreeVariables();
                 this.expressBasicThroughFree();
@@ -451,22 +557,56 @@
                         }
                     }
 
+                    // Обнуление НАД pivot (Gauss-Jordan) для чистоты
+                    for (let row = 0; row < currentRow; row++) {
+                        if (!m[row][col].isZero()) {
+                            hasElimination = true;
+                            const factor = m[row][col];
+                            for (let j = 0; j <= this.cols; j++) {
+                                m[row][j] = m[row][j].subtract(m[currentRow][j].multiply(factor));
+                            }
+                        }
+                    }
+
                     if (hasElimination) {
                         this.addStep(
-                            `Обнуление под элементом (${currentRow + 1}, ${col + 1})`,
-                            `Вычитаем строку ${currentRow + 1} из нижележащих строк`,
+                            `Исключение переменных в столбце ${col + 1}`,
+                            `Приводим столбец к единичному орту`,
                             this.copyMatrix(m)
                         );
                     }
 
                     currentRow++;
                 }
+            }
 
-                this.addStep(
-                    "Ступенчатый вид матрицы",
-                    "Прямой ход метода Гаусса завершен",
-                    this.copyMatrix(m)
-                );
+            checkConsistency() {
+                // Ищем строки вида [0 0 ... 0 | b], где b != 0
+                for (let i = 0; i < this.rows; i++) {
+                    let allZeros = true;
+                    // Проверяем коэффициенты при переменных (исключая последний столбец)
+                    for (let j = 0; j < this.cols; j++) {
+                        if (!this.augmented[i][j].isZero()) {
+                            allZeros = false;
+                            break;
+                        }
+                    }
+
+                    // Если коэффициенты нули, а свободный член (последний столбец) не ноль
+                    if (allZeros && !this.augmented[i][this.cols].isZero()) {
+                        this.isConsistent = false;
+                        this.addStep(
+                            "⛔ Система несовместна",
+                            `Обнаружено уравнение вида $0 = ${this.augmented[i][this.cols].toLatex()}$, что невозможно.`,
+                            null,
+                            `\\emptyset`,
+                            true, // isFinal
+                            true // isError
+                        );
+                        return false;
+                    }
+                }
+                return true;
             }
 
             findRank() {
@@ -495,11 +635,14 @@
                 const basicVars = [];
                 const freeVars = [];
 
-                // Определяем базисные переменные (где pivot-элементы)
-                for (let i = 0; i < this.rank; i++) {
+                // Определяем базисные переменные (первый ненулевой элемент в строке)
+                for (let i = 0; i < this.rows; i++) {
                     for (let j = 0; j < this.cols; j++) {
                         if (!this.augmented[i][j].isZero()) {
-                            basicVars.push(j);
+                            // Check if this column is already a basic var (shouldn't be in RREF but good safety)
+                            if (!basicVars.includes(j)) {
+                                basicVars.push(j);
+                            }
                             break;
                         }
                     }
@@ -516,7 +659,7 @@
                 this.freeVars = freeVars;
                 this.dimension = freeVars.length;
 
-                const freeVarNames = freeVars.map(i => `x_{${i + 1}}`).join(', ');
+                const freeVarNames = freeVars.length > 0 ? freeVars.map(i => `x_{${i + 1}}`).join(', ') : '\\emptyset';
                 const basicVarNames = basicVars.map(i => `x_{${i + 1}}`).join(', ');
 
                 this.addStep(
@@ -532,28 +675,40 @@
             expressBasicThroughFree() {
                 const expressions = [];
 
-                for (let i = 0; i < this.rank; i++) {
+                for (let i = 0; i < this.basicVars.length; i++) {
                     const basicVar = this.basicVars[i];
-                    let expr = `x_{${basicVar + 1}} = ${this.augmented[i][this.cols].toLatex()}`;
-
-                    for (let j = 0; j < this.cols; j++) {
-                        if (j !== basicVar && !this.augmented[i][j].isZero()) {
-                            const coef = this.augmented[i][j].negate();
-                            const sign = coef.num >= 0 ? '+' : '';
-                            expr += ` ${sign} ${coef.toLatex()} x_{${j + 1}}`;
+                    // Find the row corresponding to this basic variable
+                    let rowIdx = -1;
+                    for (let r = 0; r < this.rows; r++) {
+                        if (!this.augmented[r][basicVar].isZero()) {
+                            rowIdx = r;
+                            break;
                         }
                     }
 
+                    if (rowIdx === -1) continue;
+
+                    let expr = `x_{${basicVar + 1}} = ${this.augmented[rowIdx][this.cols].toLatex()}`;
+
+                    for (let k = 0; k < this.freeVars.length; k++) {
+                        const freeVar = this.freeVars[k];
+                        const val = this.augmented[rowIdx][freeVar];
+                        if (!val.isZero()) {
+                            const coef = val.negate();
+                            const sign = coef.num >= 0 ? '+' : '';
+                            expr += ` ${sign} ${coef.toLatex()} x_{${freeVar + 1}}`;
+                        }
+                    }
                     expressions.push(expr);
                 }
 
                 this.expressions = expressions;
 
                 this.addStep(
-                    "Выражение базисных переменных через свободные",
-                    "Выражаем базисные переменные через свободные из ступенчатой системы:",
+                    "Выражение базисных переменных",
+                    "Выражаем базисные переменные через свободные:",
                     null,
-                    expressions.join(' \\\\ ')
+                    expressions.length > 0 ? expressions.join(' \\\\ ') : 'x_i = \\text{const}'
                 );
             }
 
@@ -563,34 +718,53 @@
 
                 // Вектор x0 (частное решение при всех свободных = 0)
                 const x0 = Array(this.cols).fill(new Fraction(0));
-                for (let i = 0; i < this.rank; i++) {
-                    x0[this.basicVars[i]] = this.augmented[i][this.cols];
+
+                // Fill x0 for basic variables
+                for (let i = 0; i < this.basicVars.length; i++) {
+                    const basicVar = this.basicVars[i];
+                    // Find row
+                    for (let r = 0; r < this.rows; r++) {
+                        if (!this.augmented[r][basicVar].isZero()) {
+                            x0[basicVar] = this.augmented[r][this.cols];
+                            break;
+                        }
+                    }
                 }
 
                 // Векторы направлений
                 const directions = [];
                 for (let k = 0; k < this.freeVars.length; k++) {
                     const v = Array(this.cols).fill(new Fraction(0));
-                    v[this.freeVars[k]] = new Fraction(1);
+                    const freeVarIndex = this.freeVars[k];
+                    v[freeVarIndex] = new Fraction(1);
 
-                    // Заполняем базисные переменные
-                    for (let i = 0; i < this.rank; i++) {
+                    // Calculate basic variables for this direction vector
+                    for (let i = 0; i < this.basicVars.length; i++) {
                         const basicVar = this.basicVars[i];
-                        const coef = this.augmented[i][this.freeVars[k]].negate();
-                        v[basicVar] = coef;
+                        // Find row
+                        for (let r = 0; r < this.rows; r++) {
+                            if (!this.augmented[r][basicVar].isZero()) {
+                                // Coeff is -1 * matrix value because moved to RHS
+                                const val = this.augmented[r][freeVarIndex];
+                                v[basicVar] = val.negate();
+                                break;
+                            }
+                        }
                     }
 
                     directions.push(v);
                 }
 
-                this.x0 = x0;
-                this.directions = directions;
-
                 // Формируем LaTeX
-                let latex = 'x = x_0 + ';
-                for (let k = 0; k < params.length; k++) {
-                    latex += `${params[k]} v_{${k + 1}}`;
-                    if (k < params.length - 1) latex += ' + ';
+                let latex = '';
+                if (params.length === 0) {
+                    latex = 'x = x_0';
+                } else {
+                    latex = 'x = x_0 + ';
+                    for (let k = 0; k < params.length; k++) {
+                        latex += `${params[k]} v_{${k + 1}}`;
+                        if (k < params.length - 1) latex += ' + ';
+                    }
                 }
 
                 latex += ' \\\\ x_0 = \\begin{pmatrix}';
@@ -600,7 +774,7 @@
                 for (let k = 0; k < directions.length; k++) {
                     latex += `, \\quad v_{${k + 1}} = \\begin{pmatrix}`;
                     latex += directions[k].map(f => f.toLatex()).join(' \\\\ ');
-                    latex += '\\end{pmatrix}`;
+                    latex += '\\end{pmatrix}';
                 }
 
                 this.addStep(
@@ -617,8 +791,8 @@
                 return m.map(row => row.map(f => new Fraction(f.num, f.den)));
             }
 
-            addStep(title, desc, matrix = null, latex = null, isFinal = false) {
-                this.steps.push({ title, desc, matrix, latex, isFinal });
+            addStep(title, desc, matrix = null, latex = null, isFinal = false, isError = false) {
+                this.steps.push({ title, desc, matrix, latex, isFinal, isError });
             }
         }
 
@@ -635,23 +809,30 @@
                 const numEq = parseInt(document.getElementById('numEquations').value);
                 const numVar = parseInt(document.getElementById('numVariables').value);
 
-                let html = '<table style="border-collapse: collapse;">';
+                let html = '<table class="system-table">';
                 for (let i = 0; i < numEq; i++) {
                     html += '<tr>';
                     for (let j = 0; j < numVar; j++) {
-                        html += `<td style="padding:5px;">`;
-                        html += `<input type="text" data-r="${i}" data-c="${j}" value="0" style="width:60px;text-align:center;">`;
-                        html += `x<sub>${j + 1}</sub>`;
-                        if (j < numVar - 1) html += ' +';
-                        html += `</td>`;
+                        html += `<td>`;
+                        html += `<div class="system-input-wrapper">`
+                        html += `<input type="text" data-r="${i}" data-c="${j}" value="0" style="width:50px;text-align:center;" onkeypress="app.handleEnter(event)">`;
+                        html += `<span style="margin-left:4px;">x<sub>${j + 1}</sub></span>`;
+                        if (j < numVar - 1) html += '<span style="margin:0 4px;">+</span>';
+                        html += `</div></td>`;
                     }
-                    html += `<td style="padding:5px;"> = </td>`;
-                    html += `<td style="padding:5px;"><input type="text" data-r="${i}" data-c="rhs" value="0" style="width:60px;text-align:center;"></td>`;
+                    html += `<td style="padding:0 8px;">=</td>`;
+                    html += `<td><input type="text" data-r="${i}" data-c="rhs" value="0" style="width:50px;text-align:center;" onkeypress="app.handleEnter(event)"></td>`;
                     html += '</tr>';
                 }
                 html += '</table>';
 
                 document.getElementById('systemInput').innerHTML = html;
+            },
+
+            handleEnter(e) {
+                if (e.key === 'Enter') {
+                    this.startSolver();
+                }
             },
 
             renderAllMath() {
@@ -699,10 +880,29 @@
                             [1, 1, 1, 1, 4],
                             [1, -1, 2, 0, 2]
                         ]
+                    },
+                    'decimal': {
+                        numEq: 2,
+                        numVar: 3,
+                        data: [
+                            [0.5, 1, "1/3", 2],
+                            [1.5, -2, 0, 1]
+                        ]
+                    },
+                    'nosol': {
+                        numEq: 3,
+                        numVar: 3,
+                        data: [
+                            [1, 1, 1, 3],
+                            [1, 1, 1, 4], // x+y+z = 3 и x+y+z = 4 -> невозможно
+                            [0, 0, 0, 0]
+                        ]
                     }
                 };
 
                 const example = examples[key];
+                if (!example) return;
+
                 document.getElementById('numEquations').value = example.numEq;
                 document.getElementById('numVariables').value = example.numVar;
                 this.generateInputGrid();
@@ -712,14 +912,19 @@
                     inputs.forEach(inp => {
                         const r = parseInt(inp.dataset.r);
                         const c = inp.dataset.c;
+                        // Safety check
+                        if (r >= example.data.length) return;
+
                         if (c === 'rhs') {
                             inp.value = example.data[r][example.numVar];
                         } else {
                             const col = parseInt(c);
-                            inp.value = example.data[r][col];
+                            if (col < example.data[r].length) {
+                                inp.value = example.data[r][col];
+                            }
                         }
                     });
-                }, 100);
+                }, 50);
             },
 
             reset() {
@@ -734,14 +939,15 @@
                 const numEq = parseInt(document.getElementById('numEquations').value);
                 const numVar = parseInt(document.getElementById('numVariables').value);
 
-                const equations = Array(numEq).fill(0).map(() => Array(numVar).fill(0));
-                const rhs = Array(numEq).fill(0);
+                const equations = Array(numEq).fill(0).map(() => Array(numVar).fill("0"));
+                const rhs = Array(numEq).fill("0");
 
                 const inputs = document.querySelectorAll('#systemInput input');
                 inputs.forEach(inp => {
                     const r = parseInt(inp.dataset.r);
                     const c = inp.dataset.c;
-                    const value = parseInt(inp.value) || 0;
+                    const value = inp.value.trim() || "0"; // Keep as string!
+
                     if (c === 'rhs') {
                         rhs[r] = value;
                     } else {
@@ -758,7 +964,8 @@
                     this.renderHistory();
                     this.updateButtons();
                 } catch (e) {
-                    alert("Ошибка: " + e.message);
+                    alert("Ошибка при расчетах: " + e.message + "\nПроверьте введенные данные.");
+                    console.error(e);
                 }
             },
 
@@ -787,9 +994,10 @@
                     }
 
                     if (step.isFinal) {
-                        content += `<div class="result-box">
-                            <h3>✅ Решение получено</h3>
-                            <p>Параметрическая форма линейного многообразия найдена!</p>
+                        const isError = step.isError;
+                        content += `<div class="result-box ${isError ? 'error' : ''}">
+                            <h3>${isError ? '⛔ Решений нет' : '✅ Решение получено'}</h3>
+                            <p>${isError ? 'Система несовместна.' : 'Параметрическая форма линейного многообразия найдена!'}</p>
                         </div>`;
                     }
 
